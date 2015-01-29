@@ -1,0 +1,13 @@
+var Connector = require('./connector.js');
+
+function Global(parent,token) {
+  Connector.call(this,parent,token);
+}
+
+Global.prototype = Object.create(Connector.prototype);
+Global.prototype.constructor = Global;
+
+module.exports = Global;
+
+//|OUTPUT_HERE|
+

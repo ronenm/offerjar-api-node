@@ -1,0 +1,23 @@
+{
+  "name": "offerjar-api",
+  "version": "1.0.0",
+  "description": "Access the OfferJar API",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "api",
+    "ecommerce"
+  ],
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "author": "Ronen Moldovan <ronen@inkomerce.com>",
+  "license": "MIT",
+  "dependencies": {
+    "request": "~2.10.0",
+    "query-string": "*"
+  }
+}

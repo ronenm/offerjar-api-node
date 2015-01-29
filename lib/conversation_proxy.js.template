@@ -1,0 +1,73 @@
+var Connector = require('./connector.js');
+
+function ConversationProxy(parent,token) {
+  Connector.call(this,parent,token);
+}
+
+var proto = ConversationProxy.prototype = Object.create(Connector.prototype);
+
+proto.constructor = ConversationProxy;
+
+module.exports = ConversationProxy;
+
+proto.connect = function(uid,callback) {
+  this.uid = uid;
+  this.load(callback);
+}
+
+// rec is optional
+proto.load = function(rec,callback) {
+  if (typeof(rec) == 'object') {
+    this.conversation_proxy_rec = rec;
+    callback.call(this.false,undefined,rec);
+    return rec;
+  } else {
+    if (typeof(rec) == 'function') {
+      callback = rec;
+    }
+    var self = this;
+    return this.get(undefined,function (error, response, body) {
+      if (response.statusCode == 200){
+        self.conversation_proxy_rec = body;
+      } else {
+        console.log('error: '+ response.statusCode)
+        console.log(body)
+      }
+      callback.call(this,error,response,body);
+    });
+  }
+}
+
+proto.create_by_client_id = function(client_id,client_secret,add_params,callback) {
+  var self = this;
+  return this.parent.generateToken(client_id,client_secret,function(error, response, body) {
+    token_rec = body.token;
+    if (token_rec.error) {
+      callback.call(this,token_rec.error,response,body);
+    } else if (!token_rec.access_token) {
+      callback.call(this,error || 'Missing token',response,body);
+    } else {
+      self.create_by_token(token_rec.access_token,add_params,callback);
+    }
+  });
+}
+
+proto.create_by_token = function(token,add_params,callback) {
+  var self = this;
+  return this.create(add_params,function(error,response,body) {
+    if (!body.conversation_proxy || !body.conversation_proxy.uid) {
+      if (body.error) {
+        callback.call(this,body.error,response,body);
+      } else {
+        callback.call(this,error || 'Unable to create Conversation proxy',response,body);
+      }
+    } else {
+      self.conversation_proxy_rec = body;
+      self.uid = body.conversation_proxy.uid;
+      callback.call(this,error,response,body);
+    }
+  });
+}
+
+//|OUTPUT_HERE|
+

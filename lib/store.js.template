@@ -1,0 +1,104 @@
+var Connector = require('./connector.js');
+
+function Store(parent,token) {
+  Connector.call(this,parent,token);
+}
+
+var proto = Store.prototype = Object.create(Connector.prototype);
+proto.constructor = Store;
+
+module.exports = Store;
+
+proto.connect = function(uid,callback) {
+  this.uid = uid;
+  return this.load(callback);
+}
+
+// rec is optional
+proto.load = function(rec,callback) {
+  if (typeof(rec) == 'object') {
+    this.store_rec = rec;
+    callback.call(this.undefined,undefined,rec);
+    return rec;
+  } else {
+    if (typeof(rec) == 'function') {
+      callback = rec;
+    }
+    var self = this;
+
+    return this.get(undefined,function (error, response, body) {
+      if (response.statusCode == 200){
+        self.store_rec = body;
+      } else {
+        console.log('error: '+ response.statusCode)
+        console.log(body)
+      }
+      callback.call(this,error,response,body);
+    });
+  }
+}
+
+proto.create_by_client_id = function(client_id,client_secret,add_params,callback) {
+  var self = this;
+  return this.parent.generateToken(client_id,client_secret,function(error, response, body) {
+    token_rec = body.token;
+    if (token_rec.error) {
+      callback.call(this,token_rec.error,response,body);
+    } else if (!token_rec.access_token) {
+      callback.call(this,error || 'Missing token',response,body);
+    } else {
+      self.create_by_token(token_rec.access_token,add_params,callback);
+    }
+  });
+}
+
+proto.create_by_token = function(token,add_params,callback) {
+  var self = this;
+  return this.create(add_params,function(error,response,body) {
+    if (!body.store || !body.store.uid) {
+      if (body.error) {
+        callback.call(this,body.error,response,body);
+      } else {
+        callback.call(this,error || 'Unable to create store',response,body);
+      }
+    } else {
+      self.store_rec = body;
+      self.uid = body.store.uid;
+      callback.call(this,error,response,body);
+    }
+  });
+}
+
+//|OUTPUT_HERE|
+
+//##################################################################################
+// upload_product_image: Upload an image
+//
+// Parameters:
+//    rid (String): A valid product id
+//    file_name (String): The file name to upload from (in the local file system)
+//
+// Hashed Parameters: (pass to the add_params hash)
+//    title (Optional,String): The title of the image
+//
+//##################################################################################
+Store.prototype.upload_product_image = function(rid, file_name, add_params, callback) {
+  var splitted_path = file_name.split("/")
+  var p_name = splitted_path.pop();
+  var this_obj = this;
+  var params = {
+     uid: this.uid,
+     rid: rid
+  }
+  fs.readFile(file_name,{ encoding: 'base64'}, function(err,data) {
+    if (err) throw err;
+    add_params.file = {
+      filename: p_name,
+      content: data
+    }
+    add_params.send_xml = true;
+    this_obj.api_call('/stores/:uid/products/:rid/images/upload', 'post', params, add_params,callback);
+  });
+}
+
+

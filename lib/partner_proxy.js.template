@@ -1,0 +1,68 @@
+var Connector = require('./connector.js');
+
+function PartnerProxy(parent,token) {
+  Connector.call(this,parent,token);
+}
+
+var proto = PartnerProxy.prototype = Object.create(Connector.prototype);
+proto.constructor = PartnerProxy;
+
+module.exports = PartnerProxy;
+
+proto.connect = function(uid,callback) {
+  this.uid = uid;
+  return this.load(callback);
+}
+
+// rec is optional
+proto.load = function(rec,callback) {
+  if (typeof(rec) == 'object') {
+    this.partner_record = rec;
+    callback.call(this.false,undefined,rec);
+    return rec;
+  } else {
+    var self = this;
+    if (typeof(rec) == 'function') {
+      callback = rec;
+    }
+    return this.get(undefined,function (error, response, body) {
+      if (response.statusCode == 200){
+        self.partner_record = body;
+      } else {
+        console.log('error: '+ response.statusCode)
+        console.log(body)
+      }
+      callback.call(this,error,response,body);
+    });
+  }
+}
+
+proto.authenticate_me = function(uid,client_id,client_secret,add_params,callback) {
+  var self = this;
+  return this.parent.generateToken(client_id,client_secret,function(error, response, body) {
+    token_rec = body.token;
+    if (token_rec.error) {
+      callback.call(this,token_rec.error,response,body);
+    } else if (!token_rec.access_token) {
+      callback.call(this,error || "Missing token",response,body);
+    } else {
+      self.uid = uid;
+      self.authenticate(add_params,function(error,response, body) {
+        if (!body.partner) {
+          if (body.error) {
+            callback.call(this,body.error,response,body);
+          } else {
+            callback.call(this,error || 'Unable to authenticate Partner proxy',response,body);
+          }
+        } else {
+          self.partner_record = body;
+          callback.call(this,error,response,body);
+        }
+      });
+    }
+    
+  });
+}
+
+//|OUTPUT_HERE|
+
